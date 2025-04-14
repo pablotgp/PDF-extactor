@@ -629,7 +629,8 @@ def extract_and_clean_pdf_smart_stem(pdf_path,
             "detected_math_sections": math_sections_info        # Dict con las listas y booleanos
         }
 
-    except fitz.fitz.FileNotFoundError: # Ser más específico con la excepción
+    except FileNotFoundError:
+ # Ser más específico con la excepción
         print(f"Error GRAVE: No se encontró el PDF: {pdf_path}")
         return {"error": f"File not found: {pdf_path}", "cleaned_text": "", "detected_formulas": [], "detected_image_regions": {}, "omitted_pages": [], "heuristic_math_detected": False, "detected_math_sections": {}}
     except Exception as e:
