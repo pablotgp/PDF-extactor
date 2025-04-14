@@ -638,45 +638,6 @@ def extract_and_clean_pdf_smart_stem(pdf_path,
         return {"error": f"Processing error: {e}", "cleaned_text": "", "detected_formulas": [], "detected_image_regions": {}, "omitted_pages": [], "heuristic_math_detected": False, "detected_math_sections": {}}
 
 
-def on_json_get():
-    # items es la lista de entradas a este nodo Code
-    # Normalmente en n8n hay un array items, cada item puede traer .json y .binary
-    item = items[0]
-
-    # 1) Verificar que haya contenido binario
-    if "binary" not in item or "data" not in item["binary"]:
-        return {
-            "error": "No encontré datos binarios en el item. Revisa la configuración."
-        }
-
-    # 2) Sacar el base64
-    pdf_base64 = item["binary"]["data"]["data"]
-
-    # 3) Decodificar a bytes
-    pdf_bytes = base64.b64decode(pdf_base64)
-
-    # 4) Elegir una ruta temporal. /data/ funciona bien en n8n self-hosted.
-    temp_pdf_path = "/tmp/entrada.pdf"
-
-    # 5) Guardar el PDF en esa ruta
-    with open(temp_pdf_path, "wb") as f:
-        f.write(pdf_bytes)
-
-    # 6) Llamar a tu función con la ruta
-    extraction_result = extract_and_clean_pdf_smart_stem(
-        temp_pdf_path,
-        max_index_pages_to_scan=300,
-        max_summary_biblio_pages_to_scan=100
-        # ...
-    )
-
-    # 7) Retornar lo que necesites
-    return extraction_result
-
-# Finalmente, invocar la función 'on_json_get()'
-output = on_json_get()
-
-
 app = FastAPI()
 
 @app.post("/procesar_pdf")
