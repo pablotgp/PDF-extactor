@@ -15,6 +15,7 @@ import tempfile
 import os
 import base64
 import traceback
+import re
 
 def clean_pdf_text_robust(text):
     """Limpia texto de PDF de forma MÁS robusta para RAG, atacando patrones específicos."""
