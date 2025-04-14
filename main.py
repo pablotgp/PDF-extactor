@@ -84,6 +84,104 @@ def is_likely_cover(page_text, page_number, num_total_pages):
 
 # --- Celda 2 (MODIFICADA con is_likely_toc_or_index MUY CONSERVADORA) ---
 # ... (resto de importaciones y funciones: detect_formulas, is_likely_cover) ...
+def detectar_secciones_matematicas(texto_chunk):
+    """
+    Detecta menciones a secciones matemáticas típicas:
+      - Teorema / Theorem
+      - Definición / Definition
+      - Demostración / Prueba / Proof
+      - Lema / Lemma
+      - Proposición / Proposition
+      - Corolario / Corollary
+      - Observación / Observation / Remark
+      - Nota / Note
+
+    Retorna un dict con listas de coincidencias y booleanos indicando si se halló algo.
+    """
+
+    if not texto_chunk:
+        return {
+            "teoremas_mencionados": None,
+            "definiciones_mencionadas": None,
+            "demostraciones_mencionadas": None,
+            "lemmas_mencionadas": None,
+            "proposiciones_mencionadas": None,
+            "corolarios_mencionados": None,
+            "observaciones_mencionadas": None,
+            "notas_mencionadas": None,
+
+            "is_teorema": False,
+            "is_definicion": False,
+            "is_demostracion": False,
+            "is_lemma": False,
+            "is_proposicion": False,
+            "is_corolario": False,
+            "is_observacion": False,
+            "is_nota": False
+        }
+
+    # Normalizar espacios y, si deseas, usar re.IGNORECASE
+    texto_normalizado = re.sub(r'\s+', ' ', texto_chunk).strip()
+
+    # Patrones. Cada uno busca la palabra clave (en español o inglés) y opcionalmente un número tipo "3.1".
+    # Ajusta según el idioma que uses más frecuentemente.
+    teorema_pattern = r'\b(T[eé]orema(\s+\d+(\.\d+)*)?|(T|t)heorem(\s+\d+(\.\d+)*)?)\b'
+    definicion_pattern = r'\b(Definici[oó]n(\s+\d+(\.\d+)*)?|(D|d)efinition(\s+\d+(\.\d+)*)?)\b'
+    demostracion_pattern = r'\b(Demostraci[oó]n(\s+\d+(\.\d+)*)?|(P|p)rueba(\s+\d+(\.\d+)*)?|(P|p)roof(\s+\d+(\.\d+)*)?)\b'
+    lema_pattern = r'\b(Lema(\s+\d+(\.\d+)*)?|(L|l)emma(\s+\d+(\.\d+)*)?)\b'
+    proposicion_pattern = r'\b(Proposici[oó]n(\s+\d+(\.\d+)*)?|(P|p)roposition(\s+\d+(\.\d+)*)?)\b'
+    corolario_pattern = r'\b(Corolario(\s+\d+(\.\d+)*)?|(C|c)orollary(\s+\d+(\.\d+)*)?)\b'
+    observacion_pattern = r'\b(Observaci[oó]n(\s+\d+(\.\d+)*)?|(O|o)bservation(\s+\d+(\.\d+)*)?|(R|r)emark(\s+\d+(\.\d+)*)?)\b'
+    nota_pattern = r'\b(Nota(\s+\d+(\.\d+)*)?|(N|n)ote(\s+\d+(\.\d+)*)?)\b'
+
+    # Extrae coincidencias. Con re.findall(..., flags=re.IGNORECASE), no necesitarías duplicar paréntesis de mayúsc/minúsc,
+    # pero aquí lo dejamos para ser explícitos con la parte en español vs inglés.
+    teoremas = re.findall(teorema_pattern, texto_normalizado, flags=re.IGNORECASE)
+    definiciones = re.findall(definicion_pattern, texto_normalizado, flags=re.IGNORECASE)
+    demostraciones = re.findall(demostracion_pattern, texto_normalizado, flags=re.IGNORECASE)
+    lemmas = re.findall(lema_pattern, texto_normalizado, flags=re.IGNORECASE)
+    proposiciones = re.findall(proposicion_pattern, texto_normalizado, flags=re.IGNORECASE)
+    corolarios = re.findall(corolario_pattern, texto_normalizado, flags=re.IGNORECASE)
+    observaciones = re.findall(observacion_pattern, texto_normalizado, flags=re.IGNORECASE)
+    notas = re.findall(nota_pattern, texto_normalizado, flags=re.IGNORECASE)
+
+    # Cada lista (p.ej. teoremas) contiene tuplas por los subgrupos capturados.
+    # Nos interesa la posición [0] que es el match principal:
+    def extraer_matches(l_matches):
+        # Convertimos a set para quitar duplicados, luego a list, sorted
+        if not l_matches:
+            return None
+        return sorted(list(set(m[0] for m in l_matches)))
+
+    teoremas_limpios = extraer_matches(teoremas)
+    definiciones_limpias = extraer_matches(definiciones)
+    demostraciones_limpios = extraer_matches(demostraciones)
+    lemmas_limpios = extraer_matches(lemmas)
+    proposiciones_limpios = extraer_matches(proposiciones)
+    corolarios_limpios = extraer_matches(corolarios)
+    observaciones_limpios = extraer_matches(observaciones)
+    notas_limpios = extraer_matches(notas)
+
+    # Retornamos un diccionario con las listas y con flags booleanos
+    return {
+        "teoremas_mencionados": teoremas_limpios,
+        "definiciones_mencionadas": definiciones_limpias,
+        "demostraciones_mencionadas": demostraciones_limpios,
+        "lemmas_mencionadas": lemmas_limpios,
+        "proposiciones_mencionadas": proposiciones_limpios,
+        "corolarios_mencionados": corolarios_limpios,
+        "observaciones_mencionadas": observaciones_limpios,
+        "notas_mencionadas": notas_limpios,
+
+        "is_teorema": bool(teoremas_limpios),
+        "is_definicion": bool(definiciones_limpias),
+        "is_demostracion": bool(demostraciones_limpios),
+        "is_lemma": bool(lemmas_limpios),
+        "is_proposicion": bool(proposiciones_limpios),
+        "is_corolario": bool(corolarios_limpios),
+        "is_observacion": bool(observaciones_limpios),
+        "is_nota": bool(notas_limpios)
+    }
 
 def detectar_paginas_resumen_biblio(pdf_path, max_paginas_finales_a_revisar=10):
     """
