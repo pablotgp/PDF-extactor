@@ -123,6 +123,96 @@ def detectar_paginas_resumen_biblio(pdf_path, max_paginas_finales_a_revisar=10):
     return paginas_resumen, paginas_biblio
 
 
+def detect_image_regions_on_page(
+    page: fitz.Page,
+    merge_close_distance: int = 5,
+    min_area: int = 1000,
+    detect_drawings: bool = False,
+    debug: bool = False
+) -> list:
+    """
+    Detecta regiones probables de imágenes (y opcionalmente dibujos vectoriales)
+    en una página de PyMuPDF, retornando bounding boxes fusionadas y filtradas.
+
+    Args:
+        page (fitz.Page): Página de PyMuPDF sobre la que se detectan imágenes.
+        merge_close_distance (int): Distancia máxima (en puntos) para fusionar
+            bounding boxes que se solapan o están muy cerca.
+        min_area (int): Área mínima (en puntos^2) para no descartar regiones pequeñas.
+        detect_drawings (bool): Si True, intentará detectar regiones vectoriales
+            (get_drawings()) y tratarlas como imágenes.
+        debug (bool): Si True, muestra mensajes de debug.
+
+    Returns:
+        list[dict]: Lista de regiones detectadas, cada una con:
+            {
+              "bbox": (x0, y0, x1, y1),
+              "type": "image" | "drawing"
+            }
+    """
+    all_regions = []
+    try:
+        # --------------------------------------------------------
+        # 1. DETECCIÓN DE IMÁGENES BITMAP
+        # --------------------------------------------------------
+        images_info = page.get_images(full=True)
+        for img_info in images_info:
+            xref = img_info[0]
+            if xref == 0:
+                continue  # ignorar imágenes inline o inválidas
+            try:
+                # Obtener los rectángulos donde se dibuja esta imagen (puede haber varios)
+                img_rects = page.get_image_rects(xref)
+                for rect in img_rects:
+                    bbox = rect.irect  # (x0, y0, x1, y1) con coords enteras
+                    x0, y0, x1, y1 = bbox
+                    area = (x1 - x0) * (y1 - y0)
+                    if area >= min_area:
+                        all_regions.append({"bbox": bbox, "type": "image"})
+                    elif debug:
+                        print(f"DEBUG: Descartando imagen muy pequeña bbox={bbox}, area={area}")
+            except Exception as err_rects:
+                if debug:
+                    print(f"DEBUG: No se pudo obtener rects de imagen xref={xref}: {err_rects}")
+
+        # --------------------------------------------------------
+        # 2. DETECCIÓN DE "DRAWINGS" VECTORIALES (OPCIONAL)
+        # --------------------------------------------------------
+        if detect_drawings:
+            try:
+                drawings = page.get_drawings()
+                for d in drawings:
+                    # 'type' puede ser: 'l' (line), 're' (rectangle),
+                    # 'f' (fill?), 'cs' (curves?), etc.
+                    # Ajusta según tus necesidades de filtrado.
+                    # Aquí descartamos líneas simples:
+                    if d['type'] == 'l':
+                        continue
+                    bbox = d['rect'].irect
+                    x0, y0, x1, y1 = bbox
+                    area = (x1 - x0) * (y1 - y0)
+                    if area >= min_area:
+                        all_regions.append({"bbox": bbox, "type": "drawing"})
+                    elif debug:
+                        print(f"DEBUG: Descartando dibujo pequeño bbox={bbox}, area={area}")
+            except Exception as err_draw:
+                if debug:
+                    print(f"DEBUG: Error detectando dibujos vectoriales: {err_draw}")
+
+        # --------------------------------------------------------
+        # 3. FUSIÓN DE BBOXES CERCANOS O SOLAPADOS
+        # --------------------------------------------------------
+        merged_regions = _merge_bounding_boxes(all_regions, merge_close_distance, debug=debug)
+
+        if debug:
+            print(f"DEBUG: detect_image_regions_on_page => {len(all_regions)} sin fusionar, {len(merged_regions)} tras fusión")
+
+        return merged_regions
+
+    except Exception as e:
+        print(f"WARN: Error detectando imágenes/dibujos en página: {e}")
+        return []
+
 def detectar_paginas_indice(pdf_path, max_paginas_a_revisar=None, umbral_min_lineas=5):
     """
     Intenta detectar las páginas del índice (Tabla de Contenido) en un PDF.
