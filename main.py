@@ -650,7 +650,7 @@ async def procesar_pdf(file: UploadFile = File(...)):
             temp_path = tmp.name
 
         resultado = extract_and_clean_pdf_smart_stem(
-            pdf_path_stem=temp_path,
+            pdf_path=temp_path,
             max_index_pages_to_scan=300,
             max_summary_biblio_pages_to_scan=100,
             debug_prints=False
